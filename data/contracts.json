@@ -1,0 +1,534 @@
+{
+  "voi": {
+    "networkId": "voi-mainnet",
+    "algodUrl": "https://mainnet-api.voi.nodely.dev",
+    "algodPort": 443,
+    "algodToken": "",
+    "indexerUrl": "https://mainnet-idx.voi.nodely.dev",
+    "nativeCurrency": "VOI",
+    "pools": [47139778, 47139781],
+    "markets": [
+      {
+        "symbol": "VOI",
+        "name": "Voi",
+        "poolId": 47139778,
+        "contractId": 41877720,
+        "nTokenId": 47139789,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      },
+      {
+        "symbol": "aUSDC",
+        "name": "Aramid USDC",
+        "poolId": 47139778,
+        "contractId": 395614,
+        "nTokenId": 47140315,
+        "assetId": 302190,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "UNIT",
+        "name": "UNIT",
+        "poolId": 47139778,
+        "contractId": 420069,
+        "nTokenId": 47148525,
+        "assetId": null,
+        "decimals": 8,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "POW",
+        "name": "POW",
+        "poolId": 47139778,
+        "contractId": 40153155,
+        "nTokenId": 47410637,
+        "assetId": 40152679,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "aALGO",
+        "name": "Aramid Algorand",
+        "poolId": 47139778,
+        "contractId": 413153,
+        "nTokenId": 47475308,
+        "assetId": 302189,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "aETH",
+        "name": "Aramid ETH",
+        "poolId": 47139778,
+        "contractId": 40153308,
+        "nTokenId": 47482429,
+        "assetId": 302193,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "aBTC",
+        "name": "Wrapped BTC",
+        "poolId": 47139778,
+        "contractId": 40153368,
+        "nTokenId": 48168253,
+        "assetId": 40152643,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "acbBTC",
+        "name": "Coinbase BTC",
+        "poolId": 47139778,
+        "contractId": 40153415,
+        "nTokenId": 48168565,
+        "assetId": 40152648,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "WAD",
+        "name": "WAD Stablecoin (borrow-only)",
+        "poolId": 47139778,
+        "contractId": 47138068,
+        "nTokenId": 47155328,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "WAD",
+        "name": "WAD Stablecoin",
+        "poolId": 47139781,
+        "contractId": 47138068,
+        "nTokenId": 47469357,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "GM",
+        "name": "GM",
+        "poolId": 47139781,
+        "contractId": 300279,
+        "nTokenId": 47467486,
+        "assetId": null,
+        "decimals": 2,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "CORN",
+        "name": "CORN",
+        "poolId": 47139781,
+        "contractId": 412682,
+        "nTokenId": 47475083,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "SHELLY",
+        "name": "SHELLY",
+        "poolId": 47139781,
+        "contractId": 410111,
+        "nTokenId": 48169022,
+        "assetId": null,
+        "decimals": 8,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "BUIDL",
+        "name": "BUIDL",
+        "poolId": 47139781,
+        "contractId": 419744,
+        "nTokenId": 48174565,
+        "assetId": null,
+        "decimals": 8,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "F",
+        "name": "F",
+        "poolId": 47139781,
+        "contractId": 302222,
+        "nTokenId": 48174629,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "NODE",
+        "name": "NODE",
+        "poolId": 47139781,
+        "contractId": 410811,
+        "nTokenId": 48174745,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "AMMO",
+        "name": "AMMO",
+        "poolId": 47139781,
+        "contractId": 798968,
+        "nTokenId": 48174796,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "IAT",
+        "name": "IAT",
+        "poolId": 47139781,
+        "contractId": 420024,
+        "nTokenId": 48174826,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "bVOI",
+        "name": "BUIDL VOI",
+        "poolId": 47139781,
+        "contractId": 8471125,
+        "nTokenId": 48174861,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      },
+      {
+        "symbol": "NV",
+        "name": "Nautilus VOI",
+        "poolId": 47139781,
+        "contractId": 8324600,
+        "nTokenId": 48174965,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      },
+      {
+        "symbol": "EV",
+        "name": "enVOI",
+        "poolId": 47139781,
+        "contractId": 828295,
+        "nTokenId": 48175031,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      },
+      {
+        "symbol": "FV",
+        "name": "Fountain VOI",
+        "poolId": 47139781,
+        "contractId": 770561,
+        "nTokenId": 48175113,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      }
+    ]
+  },
+  "algorand": {
+    "networkId": "algorand-mainnet",
+    "algodUrl": "https://mainnet-api.4160.nodely.dev",
+    "algodPort": 443,
+    "algodToken": "",
+    "indexerUrl": "https://mainnet-idx.4160.nodely.dev",
+    "nativeCurrency": "ALGO",
+    "pools": [3333688282, 3345940978],
+    "markets": [
+      {
+        "symbol": "ALGO",
+        "name": "Algorand",
+        "poolId": 3333688282,
+        "contractId": 3207744109,
+        "nTokenId": 3333724131,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network"
+      },
+      {
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "poolId": 3333688282,
+        "contractId": 3210682240,
+        "nTokenId": 3333764003,
+        "assetId": 31566704,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "UNIT",
+        "name": "UNIT",
+        "poolId": 3333688282,
+        "contractId": 3220125024,
+        "nTokenId": 3333783429,
+        "assetId": 3121954282,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "POW",
+        "name": "POW",
+        "poolId": 3333688282,
+        "contractId": 3080081069,
+        "nTokenId": 3345339041,
+        "assetId": 2994233666,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "goBTC",
+        "name": "goBTC",
+        "poolId": 3333688282,
+        "contractId": 3211820549,
+        "nTokenId": 3345872342,
+        "assetId": 386192725,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "aVOI",
+        "name": "Aramid VOI",
+        "poolId": 3333688282,
+        "contractId": 3210709899,
+        "nTokenId": 3347224631,
+        "assetId": 2320775407,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "wBTC",
+        "name": "wBTC",
+        "poolId": 3333688282,
+        "contractId": 3211827406,
+        "nTokenId": 3348042762,
+        "assetId": 1058926737,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "goETH",
+        "name": "goETH",
+        "poolId": 3333688282,
+        "contractId": 3211806149,
+        "nTokenId": 3348091978,
+        "assetId": 386195940,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "wETH",
+        "name": "wETH",
+        "poolId": 3333688282,
+        "contractId": 3211811648,
+        "nTokenId": 3348121075,
+        "assetId": 887406851,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "LINK",
+        "name": "LINK",
+        "poolId": 3333688282,
+        "contractId": 3211838479,
+        "nTokenId": 3348498326,
+        "assetId": 1200094857,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "SOL",
+        "name": "SOL",
+        "poolId": 3333688282,
+        "contractId": 3211883276,
+        "nTokenId": 3348607970,
+        "assetId": 887648583,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "AVAX",
+        "name": "AVAX",
+        "poolId": 3333688282,
+        "contractId": 3211885849,
+        "nTokenId": 3352584524,
+        "assetId": 893309613,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "WAD",
+        "name": "WAD Stablecoin (borrow-only)",
+        "poolId": 3333688282,
+        "contractId": 3333688448,
+        "nTokenId": 3333919084,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "WAD",
+        "name": "WAD Stablecoin",
+        "poolId": 3345940978,
+        "contractId": 3333688448,
+        "nTokenId": 3350640542,
+        "assetId": null,
+        "decimals": 6,
+        "tokenStandard": "arc200"
+      },
+      {
+        "symbol": "FINITE",
+        "name": "FINITE",
+        "poolId": 3345940978,
+        "contractId": 3211805086,
+        "nTokenId": 3346001205,
+        "assetId": 400593267,
+        "decimals": 8,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "FOLKS",
+        "name": "Folks Finance",
+        "poolId": 3345940978,
+        "contractId": 3346185062,
+        "nTokenId": 3346216929,
+        "assetId": 3203964481,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "COOP",
+        "name": "COOP",
+        "poolId": 3345940978,
+        "contractId": 3212524778,
+        "nTokenId": 3346359997,
+        "assetId": 796425061,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "HOG",
+        "name": "HOG",
+        "poolId": 3345940978,
+        "contractId": 3212773584,
+        "nTokenId": 3346388982,
+        "assetId": 3178895177,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "USDt",
+        "name": "USDt",
+        "poolId": 3345940978,
+        "contractId": 3346408431,
+        "nTokenId": 3346410585,
+        "assetId": 312769,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "xUSD",
+        "name": "xUSD",
+        "poolId": 3345940978,
+        "contractId": 3346881192,
+        "nTokenId": 3346887893,
+        "assetId": 760037151,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "MONKO",
+        "name": "MONKO",
+        "poolId": 3345940978,
+        "contractId": 3212530444,
+        "nTokenId": 3347032952,
+        "assetId": 2494786278,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "HAY",
+        "name": "HAY",
+        "poolId": 3345940978,
+        "contractId": 3211890928,
+        "nTokenId": 3347112042,
+        "assetId": 3160000000,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "BRO",
+        "name": "BRO",
+        "poolId": 3345940978,
+        "contractId": 3212768756,
+        "nTokenId": 3347182161,
+        "assetId": 2637100337,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "ALPHA",
+        "name": "ALPHA",
+        "poolId": 3345940978,
+        "contractId": 3212531816,
+        "nTokenId": 3347348052,
+        "assetId": 2726252423,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "COMPX",
+        "name": "COMPX",
+        "poolId": 3345940978,
+        "contractId": 3211800950,
+        "nTokenId": 3347572206,
+        "assetId": 1732165149,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "AKTA",
+        "name": "AKITA INU",
+        "poolId": 3345940978,
+        "contractId": 3212534634,
+        "nTokenId": 3347802615,
+        "assetId": 523683256,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "PEPE",
+        "name": "PEPE",
+        "poolId": 3345940978,
+        "contractId": 3212771255,
+        "nTokenId": 3347856501,
+        "assetId": 1096015467,
+        "decimals": 4,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "GOLD$",
+        "name": "GOLD$",
+        "poolId": 3345940978,
+        "contractId": 3220347315,
+        "nTokenId": 3347951758,
+        "assetId": 246516580,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      },
+      {
+        "symbol": "TINY",
+        "name": "TINY",
+        "poolId": 3345940978,
+        "contractId": 3211740909,
+        "nTokenId": 3389215333,
+        "assetId": 2200000000,
+        "decimals": 6,
+        "tokenStandard": "asa"
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "dorkfi-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP server for the DorkFi lending protocol on Voi and Algorand",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "algosdk": "^2.9.0",
+    "zod": "^3.23.0"
+  }
+}
