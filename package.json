@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "algosdk": "^2.9.0",
+    "algosdk": "^3.5.2",
+    "ulujs": "^3.0.2",
     "zod": "^3.23.0"
   }
 }

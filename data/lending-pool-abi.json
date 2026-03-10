@@ -1,0 +1,86 @@
+{
+  "name": "DorkFiLendingPool",
+  "desc": "DorkFi Lending Pool",
+  "methods": [
+    {
+      "name": "deposit",
+      "args": [
+        { "name": "market_id", "type": "uint64" },
+        { "name": "amount", "type": "uint256" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "withdraw",
+      "args": [
+        { "name": "market_id", "type": "uint64" },
+        { "name": "amount", "type": "uint256" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "borrow",
+      "args": [
+        { "name": "market_id", "type": "uint64" },
+        { "name": "amount", "type": "uint256" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "repay",
+      "args": [
+        { "name": "market_id", "type": "uint64" },
+        { "name": "amount", "type": "uint256" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "liquidate_cross_market",
+      "args": [
+        { "name": "debt_market", "type": "uint64" },
+        { "name": "collateral_market", "type": "uint64" },
+        { "name": "borrower", "type": "address" },
+        { "name": "amount", "type": "uint256" },
+        { "name": "min_collateral", "type": "uint256" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "get_market",
+      "args": [
+        { "name": "market_id", "type": "uint64" }
+      ],
+      "returns": { "type": "(bool,uint256,uint256,uint64,uint64,uint64,uint64,uint64,uint64,uint256,uint256,uint256,uint256,uint64,uint256,uint256,uint64,uint64)" }
+    },
+    {
+      "name": "get_user",
+      "args": [
+        { "name": "user", "type": "address" },
+        { "name": "market_id", "type": "uint64" }
+      ],
+      "returns": { "type": "(uint256,uint256,uint256,uint256,uint64,uint256)" }
+    },
+    {
+      "name": "get_global_user",
+      "args": [
+        { "name": "user", "type": "address" }
+      ],
+      "returns": { "type": "(uint256,uint256,uint64)" }
+    },
+    {
+      "name": "get_global_user_collateral",
+      "args": [
+        { "name": "user", "type": "address" }
+      ],
+      "returns": { "type": "uint256" }
+    },
+    {
+      "name": "get_global_user_health",
+      "args": [
+        { "name": "user", "type": "address" },
+        { "name": "market_id", "type": "uint64" }
+      ],
+      "returns": { "type": "uint256" }
+    }
+  ]
+}

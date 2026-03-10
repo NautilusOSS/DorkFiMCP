@@ -6,6 +6,7 @@
     "algodToken": "",
     "indexerUrl": "https://mainnet-idx.voi.nodely.dev",
     "nativeCurrency": "VOI",
+    "oracleApps": [47138065],
     "pools": [47139778, 47139781],
     "markets": [
       {
@@ -237,6 +238,7 @@
     "algodToken": "",
     "indexerUrl": "https://mainnet-idx.4160.nodely.dev",
     "nativeCurrency": "ALGO",
+    "oracleApps": [3333688254],
     "pools": [3333688282, 3345940978],
     "markets": [
       {
