@@ -9,6 +9,7 @@ import {
   prepareSupply,
   prepareBorrow,
   prepareRepay,
+  prepareRepayAll,
   prepareWithdraw,
   prepareLiquidation,
 } from "./lib/builders.js";
@@ -203,6 +204,20 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareRepay(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "repay_all_txn",
+  "Build unsigned transactions to repay a user's entire borrow balance for a DorkFi lending market. Queries the on-chain borrow amount, wraps tokens if needed, then calls repay_all. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol to repay"),
+    sender: z.string().describe("Repayer wallet address"),
+  },
+  async ({ chain, symbol, sender }) => {
+    const result = await prepareRepayAll(chain, symbol, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
