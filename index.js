@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getMarkets, getMarketOnChain } from "./lib/markets.js";
-import { getPosition, getHealthFactor, getUserOnChain, getAllUsers } from "./lib/positions.js";
+import { getPosition, getHealthFactor, getUserOnChain, getGlobalUserOnChain, getAllUsers } from "./lib/positions.js";
 import { getLiquidationCandidates } from "./lib/liquidation.js";
 import { fetchTVL } from "./lib/api.js";
 import {
@@ -100,6 +100,19 @@ server.tool(
   async ({ chain, address, symbol }) => {
     const user = await getUserOnChain(chain, address, symbol);
     return { content: [{ type: "text", text: JSON.stringify(user, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_global_user",
+  "Get a user's aggregate on-chain collateral and borrow values across all pools by calling the pool contract's get_global_user ABI method via algod simulate.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    address: z.string().describe("User wallet address"),
+  },
+  async ({ chain, address }) => {
+    const result = await getGlobalUserOnChain(chain, address);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
