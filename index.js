@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { getMarkets } from "./lib/markets.js";
-import { getPosition, getHealthFactor } from "./lib/positions.js";
+import { getMarkets, getMarketOnChain } from "./lib/markets.js";
+import { getPosition, getHealthFactor, getAllUsers } from "./lib/positions.js";
 import { getLiquidationCandidates } from "./lib/liquidation.js";
 import { fetchTVL } from "./lib/api.js";
 import {
@@ -32,6 +32,19 @@ server.tool(
   async ({ chain, symbol }) => {
     const markets = await getMarkets(chain, symbol);
     return { content: [{ type: "text", text: JSON.stringify(markets, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_market",
+  "Get a single DorkFi lending market's full on-chain data by calling the pool contract's get_market ABI method via algod simulate.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
+  },
+  async ({ chain, symbol }) => {
+    const market = await getMarketOnChain(chain, symbol);
+    return { content: [{ type: "text", text: JSON.stringify(market, null, 2) }] };
   }
 );
 
@@ -73,6 +86,18 @@ server.tool(
   async ({ chain, address }) => {
     const health = await getHealthFactor(chain, address);
     return { content: [{ type: "text", text: JSON.stringify(health, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_users",
+  "List all DorkFi users with aggregate health factors, collateral, borrows, and risk levels. Sorted by health factor (most at-risk first).",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+  },
+  async ({ chain }) => {
+    const result = await getAllUsers(chain);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
