@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getMarkets, getMarketOnChain } from "./lib/markets.js";
-import { getPosition, getHealthFactor, getAllUsers } from "./lib/positions.js";
+import { getPosition, getHealthFactor, getUserOnChain, getAllUsers } from "./lib/positions.js";
 import { getLiquidationCandidates } from "./lib/liquidation.js";
 import { fetchTVL } from "./lib/api.js";
 import {
@@ -86,6 +86,20 @@ server.tool(
   async ({ chain, address }) => {
     const health = await getHealthFactor(chain, address);
     return { content: [{ type: "text", text: JSON.stringify(health, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_user",
+  "Get a user's on-chain position data for a specific DorkFi lending market by calling the pool contract's get_user ABI method via algod simulate.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    address: z.string().describe("User wallet address"),
+    symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
+  },
+  async ({ chain, address, symbol }) => {
+    const user = await getUserOnChain(chain, address, symbol);
+    return { content: [{ type: "text", text: JSON.stringify(user, null, 2) }] };
   }
 );
 
