@@ -9,6 +9,7 @@ import {
   prepareSupply,
   prepareBorrow,
   prepareRepay,
+  prepareRepayOnBehalf,
   prepareRepayAll,
   prepareWithdraw,
   prepareLiquidation,
@@ -204,6 +205,22 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareRepay(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "repay_on_behalf_txn",
+  "Build unsigned transactions to repay another user's borrowed tokens to a DorkFi lending market. The sender pays the debt on behalf of the borrower. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol to repay"),
+    amount: z.string().describe("Amount in human-readable units"),
+    borrower: z.string().describe("Address of the borrower whose debt is being repaid"),
+    sender: z.string().describe("Repayer wallet address (the one paying)"),
+  },
+  async ({ chain, symbol, amount, borrower, sender }) => {
+    const result = await prepareRepayOnBehalf(chain, symbol, amount, borrower, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
