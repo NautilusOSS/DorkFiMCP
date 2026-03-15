@@ -12,6 +12,7 @@ import {
   prepareRepayOnBehalf,
   prepareRepayAll,
   prepareWithdraw,
+  prepareFetchPriceFeed,
   prepareSyncMarket,
   prepareWithdrawReserves,
   prepareSyncUserMarket,
@@ -265,6 +266,20 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareWithdraw(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "fetch_price_feed_txn",
+  "Build unsigned transactions to fetch the latest oracle price for a DorkFi lending market. Calls fetch_price_feed(uint64) on the pool contract. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol of the market to fetch price for (e.g. VOI, USDC)"),
+    sender: z.string().describe("Transaction sender wallet address"),
+  },
+  async ({ chain, symbol, sender }) => {
+    const result = await prepareFetchPriceFeed(chain, symbol, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );

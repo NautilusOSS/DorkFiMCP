@@ -46,6 +46,13 @@
       "returns": { "type": "uint256" }
     },
     {
+      "name": "fetch_price_feed",
+      "args": [
+        { "name": "market_id", "type": "uint64" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
       "name": "sync_market",
       "args": [
         { "name": "market_id", "type": "uint64" }
