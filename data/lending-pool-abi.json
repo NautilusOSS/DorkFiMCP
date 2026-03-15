@@ -46,6 +46,13 @@
       "returns": { "type": "uint256" }
     },
     {
+      "name": "sync_market",
+      "args": [
+        { "name": "market_id", "type": "uint64" }
+      ],
+      "returns": { "type": "(bool,uint256,uint256,uint64,uint64,uint64,uint64,uint64,uint64,uint256,uint256,uint256,uint256,uint64,uint256,uint256,uint64,uint64)" }
+    },
+    {
       "name": "withdraw_reserves",
       "args": [
         { "name": "market_id", "type": "uint64" },

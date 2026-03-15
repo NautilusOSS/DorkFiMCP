@@ -12,6 +12,7 @@ import {
   prepareRepayOnBehalf,
   prepareRepayAll,
   prepareWithdraw,
+  prepareSyncMarket,
   prepareWithdrawReserves,
   prepareSyncUserMarket,
   prepareLiquidation,
@@ -264,6 +265,20 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareWithdraw(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "sync_market_txn",
+  "Build unsigned transactions to sync a DorkFi lending market's state (interest accrual, index updates). Calls sync_market(uint64) on the pool contract. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol of the market to sync (e.g. VOI, USDC)"),
+    sender: z.string().describe("Transaction sender wallet address"),
+  },
+  async ({ chain, symbol, sender }) => {
+    const result = await prepareSyncMarket(chain, symbol, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
