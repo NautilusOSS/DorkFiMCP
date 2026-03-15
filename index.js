@@ -12,6 +12,7 @@ import {
   prepareRepayOnBehalf,
   prepareRepayAll,
   prepareWithdraw,
+  prepareSyncUserMarket,
   prepareLiquidation,
 } from "./lib/builders.js";
 
@@ -250,6 +251,21 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareWithdraw(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "sync_user_market_for_price_change_txn",
+  "Build unsigned transactions to sync a user's market position after an oracle price change. Updates the user's collateral and borrow values in the pool contract. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol of the market to sync"),
+    user: z.string().describe("Address of the user whose position to sync"),
+    sender: z.string().describe("Transaction sender wallet address"),
+  },
+  async ({ chain, symbol, user, sender }) => {
+    const result = await prepareSyncUserMarket(chain, symbol, user, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
