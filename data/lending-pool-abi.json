@@ -46,6 +46,14 @@
       "returns": { "type": "uint256" }
     },
     {
+      "name": "withdraw_reserves",
+      "args": [
+        { "name": "market_id", "type": "uint64" },
+        { "name": "amount", "type": "uint256" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
       "name": "sync_user_market_for_price_change",
       "args": [
         { "name": "user", "type": "address" },

@@ -12,6 +12,7 @@ import {
   prepareRepayOnBehalf,
   prepareRepayAll,
   prepareWithdraw,
+  prepareWithdrawReserves,
   prepareSyncUserMarket,
   prepareLiquidation,
 } from "./lib/builders.js";
@@ -251,6 +252,21 @@ server.tool(
   },
   async ({ chain, symbol, amount, sender }) => {
     const result = await prepareWithdraw(chain, symbol, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "withdraw_reserves_txn",
+  "Build unsigned transactions to withdraw accumulated reserves from a DorkFi lending market. Owner/admin only. Returns base64-encoded transactions for signing.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+    symbol: z.string().describe("Token symbol of the market"),
+    amount: z.string().describe("Amount of reserves to withdraw in human-readable units"),
+    sender: z.string().describe("Owner/admin wallet address"),
+  },
+  async ({ chain, symbol, amount, sender }) => {
+    const result = await prepareWithdrawReserves(chain, symbol, amount, sender);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
