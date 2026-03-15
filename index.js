@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { getMarkets, getMarketOnChain } from "./lib/markets.js";
+import { getMarkets, getMarketOnChain, getIsPaused } from "./lib/markets.js";
 import { getPosition, getHealthFactor, getUserOnChain, getGlobalUserOnChain, getAllUsers } from "./lib/positions.js";
 import { getLiquidationCandidates } from "./lib/liquidation.js";
 import { fetchTVL } from "./lib/api.js";
@@ -49,6 +49,18 @@ server.tool(
   async ({ chain, symbol }) => {
     const market = await getMarketOnChain(chain, symbol);
     return { content: [{ type: "text", text: JSON.stringify(market, null, 2) }] };
+  }
+);
+
+server.tool(
+  "is_paused",
+  "Check if DorkFi lending pool contracts are paused by calling the is_paused ABI method via algod simulate. Returns pause status for each pool.",
+  {
+    chain: ChainEnum.describe("Blockchain network"),
+  },
+  async ({ chain }) => {
+    const result = await getIsPaused(chain);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
