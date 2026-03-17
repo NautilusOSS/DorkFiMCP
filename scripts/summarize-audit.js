@@ -117,6 +117,26 @@ function buildSummary(audit, topN) {
   ];
   const uniqueUsers = new Set(allAddresses).size;
 
+  const NETWORK_TO_CHAIN = { "voi-mainnet": "voi", "algorand-mainnet": "algorand" };
+  const depositOnlyMarkets = new Map();
+  for (const c of candidates) {
+    if (c.scaledDeposits > 0 && !borrowerAddresses.has(c.address) && (c.priority === "critical" || c.priority === "high")) {
+      const key = `${c.network}:${c.contractId}`;
+      if (!depositOnlyMarkets.has(key)) {
+        depositOnlyMarkets.set(key, {
+          chain: NETWORK_TO_CHAIN[c.network] ?? c.network,
+          contractId: c.contractId,
+          poolId: c.poolId,
+          symbols: new Set(),
+          count: 0,
+        });
+      }
+      const entry = depositOnlyMarkets.get(key);
+      entry.symbols.add(c.symbol);
+      entry.count++;
+    }
+  }
+
   return {
     generatedAt,
     total,
@@ -134,6 +154,9 @@ function buildSummary(audit, topN) {
     symbolStats,
     topStale,
     borrowersAtRisk,
+    depositOnlyMarkets: [...depositOnlyMarkets.values()]
+      .map((m) => ({ ...m, symbols: [...m.symbols] }))
+      .sort((a, b) => b.count - a.count),
   };
 }
 
@@ -153,7 +176,7 @@ function formatTimestamp(epoch) {
   return d.toISOString().replace("T", " ").slice(0, 19) + " UTC";
 }
 
-function formatText(summary, topN) {
+function formatText(summary, topN, auditFile) {
   const lines = [];
   const { priority } = summary;
 
@@ -213,9 +236,69 @@ function formatText(summary, topN) {
     lines.push("");
   }
 
-  lines.push("═══════════════════════════════════════════════════════════════");
-  lines.push("  Action: run dorkfi-sync_user_market_for_price_change_txn");
-  lines.push("  for each stale position, prioritizing critical & borrowers.");
+  const NETWORK_TO_CHAIN = { "voi-mainnet": "voi", "algorand-mainnet": "algorand" };
+  const file = auditFile ?? "<audit.json>";
+  const depositOnlyTotal = summary.priority.critical.depositOnly + summary.priority.high.depositOnly;
+  const chains = summary.networkStats.map((ns) => NETWORK_TO_CHAIN[ns.network] ?? ns.network);
+
+  lines.push("─── Suggested Commands ─────────────────────────────────────");
+  lines.push("");
+
+  if (depositOnlyTotal > 0) {
+    lines.push(`  Sync all deposit-only users (${depositOnlyTotal} addrs, critical+high):`);
+    lines.push(`    npm run sync:deposit-only -- ${file}`);
+    lines.push("");
+
+    if (summary.depositOnlyMarkets.length > 0) {
+      lines.push("  Sync by market:");
+      for (const m of summary.depositOnlyMarkets) {
+        lines.push(`    npm run sync:deposit-only-market -- ${file} --chain ${m.chain} --contract-id ${m.contractId}    # ${m.symbols.join(", ")} (${m.count} positions)`);
+      }
+      lines.push("");
+    }
+  }
+
+  if (summary.borrowersAtRisk.length > 0) {
+    const uniqueBorrowers = new Map();
+    for (const c of summary.borrowersAtRisk) {
+      if (!uniqueBorrowers.has(c.address)) {
+        uniqueBorrowers.set(c.address, { chain: NETWORK_TO_CHAIN[c.network] ?? c.network, symbols: new Set() });
+      }
+      uniqueBorrowers.get(c.address).symbols.add(c.symbol);
+    }
+    const top = [...uniqueBorrowers.entries()].slice(0, 5);
+    lines.push(`  Warn at-risk borrowers (${uniqueBorrowers.size} total):`);
+    for (const [addr, info] of top) {
+      lines.push(`    npm run send:liquidation-warning -- --chain ${info.chain} --address ${addr}    # ${[...info.symbols].join(", ")}`);
+    }
+    if (uniqueBorrowers.size > 5) {
+      lines.push(`    # ... and ${uniqueBorrowers.size - 5} more`);
+    }
+    lines.push("");
+  }
+
+  if (chains.length > 0) {
+    lines.push("  Broadcast notification to all users:");
+    for (const chain of chains) {
+      lines.push(`    npm run broadcast:notification -- --chain ${chain}`);
+    }
+    lines.push("");
+  }
+
+  if (summary.topStale.length > 0) {
+    const topAddr = summary.topStale[0];
+    const chain = NETWORK_TO_CHAIN[topAddr.network] ?? topAddr.network;
+    lines.push("  Drill into the most-stale account:");
+    lines.push(`    npm run audit:account -- ${topAddr.address} --chain ${chain}    # ${topAddr.symbol} ${topAddr.priceChangePercent > 0 ? "+" : ""}${topAddr.priceChangePercent.toFixed(2)}%`);
+    lines.push("");
+  }
+
+  lines.push("  Re-run staleness audit:");
+  lines.push("    npm run audit:staleness -- --json -o audit.json");
+  lines.push("");
+  lines.push("  All commands default to --dry-run. Pass --submit to broadcast.");
+  lines.push("  Set MN env var (25-word mnemonic) for signing.");
+  lines.push("");
   lines.push("═══════════════════════════════════════════════════════════════");
 
   return lines.join("\n");
@@ -255,7 +338,7 @@ function main() {
     };
     console.log(JSON.stringify(jsonOut, null, 2));
   } else {
-    console.log(formatText(summary, opts.top));
+    console.log(formatText(summary, opts.top, opts.file));
   }
 }
 

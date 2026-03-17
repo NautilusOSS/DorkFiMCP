@@ -95,6 +95,14 @@ lib/
   positions.js        User positions and health factors from API
   liquidation.js      Liquidation candidates from pre-indexed health data
   builders.js         Unsigned transaction group builders (on-chain)
+scripts/
+  audit-staleness.js          Full staleness audit across all users
+  audit-account.js            Single-account audit
+  summarize-audit.js          Summarize audit JSON reports
+  sync-deposit-only.js        Batch sync deposit-only users
+  sync-deposit-only-market.js Sync deposit-only users for a specific market
+  send-liquidation-warning.js Send liquidation warning to one address
+  broadcast-notification.js   Broadcast notification to all users
 data/
   contracts.json      Chain configs, pool IDs, and token definitions
 ```
@@ -123,6 +131,62 @@ Or configure as an MCP server in your agent:
   }
 }
 ```
+
+## Scripts / CLI Commands
+
+Standalone scripts for auditing, syncing, and notifying DorkFi users. All scripts support `--help` for full usage details.
+
+| npm script | Command | Description |
+|------------|---------|-------------|
+| `audit:staleness` | `node scripts/audit-staleness.js` | Full audit of user-market staleness across all positions. Compares each user's on-chain `lastPrice` against the current oracle price and reports stale positions grouped by priority. |
+| `audit:account` | `node scripts/audit-account.js` | Audit a single account across all markets on one or both chains. Reports stale positions and optionally syncs them. |
+| `audit:summary` | `node scripts/summarize-audit.js` | Summarize an audit JSON report with per-network, per-symbol, and per-priority breakdowns. |
+| `sync:deposit-only` | `node scripts/sync-deposit-only.js` | Batch-sync deposit-only addresses from a staleness audit. Filters for users with no borrows and submits `sync_user_market_for_price_change` transactions. |
+| `sync:deposit-only-market` | `node scripts/sync-deposit-only-market.js` | Same as `sync:deposit-only` but scoped to a single market via `--chain` and `--contract-id`. |
+| `send:liquidation-warning` | `node scripts/send-liquidation-warning.js` | Send a 0-amount payment with a liquidation-risk warning in the transaction note to a specific address. |
+| `broadcast:notification` | `node scripts/broadcast-notification.js` | Broadcast a notification to all DorkFi users on a chain via 0-amount payment transaction notes. |
+
+### Typical workflow
+
+```bash
+# 1. Run a full staleness audit and save JSON
+npm run audit:staleness -- --json -o audit.json
+
+# 2. Summarize the audit
+npm run audit:summary -- audit.json
+
+# 3. Dry-run sync for deposit-only users (critical + high priority)
+npm run sync:deposit-only -- audit.json --dry-run
+
+# 4. Sync deposit-only users for a specific market
+npm run sync:deposit-only-market -- audit.json --chain voi --contract-id 420069
+
+# 5. Submit sync transactions (requires MN env var)
+MN="your mnemonic" npm run sync:deposit-only -- audit.json --submit
+
+# 6. Audit a single account
+npm run audit:account -- <ADDRESS> --chain voi
+
+# 7. Send liquidation warning to a specific user
+MN="your mnemonic" npm run send:liquidation-warning -- --chain voi --address <RECIPIENT> --submit
+
+# 8. Broadcast notification to all users on a chain
+MN="your mnemonic" npm run broadcast:notification -- --chain voi --submit
+```
+
+### Common options
+
+All sync/submit scripts default to `--dry-run` mode. Pass `--submit` to sign and broadcast. The `MN` environment variable (25-word Algorand mnemonic) is required for signing.
+
+| Option | Scripts | Description |
+|--------|---------|-------------|
+| `--dry-run` | sync, audit:account, send, broadcast | Build transactions without submitting (default) |
+| `--submit` | sync, audit:account, send, broadcast | Sign and submit transactions |
+| `--chain <voi\|algorand>` | all | Target chain (some default to both) |
+| `--concurrency <N>` | sync, audit, broadcast | Max parallel operations |
+| `--output <file>` | sync, audit, broadcast | Write JSON results to file |
+| `--json` | audit:staleness, audit:account, audit:summary | Output raw JSON |
+| `--priority <tiers>` | sync:deposit-only, sync:deposit-only-market | Comma-separated priorities (default: critical,high) |
 
 ## DorkFi API
 

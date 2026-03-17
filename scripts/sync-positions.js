@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * Sync deposit-only addresses from a DorkFi staleness audit.
+ * Sync all stale positions from a DorkFi staleness audit.
  *
- * Reads audit JSON (from audit-staleness.js --json), filters for critical and
- * high priority positions belonging to deposit-only addresses (no borrows on
- * any market), then builds + signs + submits sync_user_market_for_price_change
- * transactions.
+ * Reads audit JSON (from audit-staleness.js --json), filters by priority,
+ * then builds + signs + submits sync_user_market_for_price_change
+ * transactions for every matching position (deposits and borrows alike).
  *
  * Usage:
- *   node scripts/sync-deposit-only.js <audit.json> [options]
+ *   node scripts/sync-positions.js <audit.json> [options]
  *
  * Options:
  *   --dry-run           Build transactions but don't submit (default)
  *   --submit            Actually sign and submit transactions
  *   --concurrency <N>   Max parallel operations (default: 3)
  *   --priority <tiers>  Comma-separated priorities (default: critical,high)
+ *   --symbol <sym>      Filter to a specific market symbol (e.g. VOI, USDC)
  *   --output <file>     Write JSON results to file
  *
  * Environment:
@@ -40,6 +40,7 @@ function parseArgs() {
     submit: false,
     concurrency: 3,
     priorities: ["critical", "high"],
+    symbol: null,
     output: null,
   };
 
@@ -52,16 +53,19 @@ function parseArgs() {
       opts.concurrency = parseInt(args[++i], 10);
     } else if (args[i] === "--priority" && args[i + 1]) {
       opts.priorities = args[++i].split(",").map((s) => s.trim().toLowerCase());
+    } else if (args[i] === "--symbol" && args[i + 1]) {
+      opts.symbol = args[++i].toUpperCase();
     } else if (args[i] === "--output" && args[i + 1]) {
       opts.output = args[++i];
     } else if (args[i] === "--help") {
-      console.log(`Usage: node scripts/sync-deposit-only.js <audit.json> [options]
+      console.log(`Usage: node scripts/sync-positions.js <audit.json> [options]
 
   <audit.json>         Path to audit JSON from audit-staleness.js --json
   --submit             Sign and submit transactions (default: dry-run)
   --dry-run            Build but don't submit (default)
   --concurrency <N>    Max parallel builds (default: 3)
   --priority <tiers>   Comma-separated priorities (default: critical,high)
+  --symbol <sym>       Filter to a specific market symbol (e.g. VOI, USDC)
   --output <file>      Write JSON results to file
 
 Environment:
@@ -90,18 +94,14 @@ function loadAudit(path) {
   return data;
 }
 
-function findDepositOnlyCandidates(candidates, priorities) {
-  const borrowerAddresses = new Set(
-    candidates.filter((c) => c.scaledBorrows > 0).map((c) => c.address),
-  );
-
+function findCandidates(candidates, priorities, symbol) {
   const prioritySet = new Set(priorities);
 
   return candidates.filter(
     (c) =>
       prioritySet.has(c.priority) &&
-      c.scaledDeposits > 0 &&
-      !borrowerAddresses.has(c.address),
+      (c.scaledDeposits > 0 || c.scaledBorrows > 0) &&
+      (symbol == null || c.symbol === symbol),
   );
 }
 
@@ -145,15 +145,25 @@ async function processBatch(tasks, concurrency) {
 async function main() {
   const opts = parseArgs();
   const audit = loadAudit(opts.file);
-  const targets = findDepositOnlyCandidates(audit.candidates, opts.priorities);
+  const targets = findCandidates(audit.candidates, opts.priorities, opts.symbol);
 
   if (targets.length === 0) {
-    console.log("No deposit-only positions found at the requested priorities.");
+    console.log(
+      "No positions found at the requested priorities" +
+        (opts.symbol ? ` for ${opts.symbol}` : "") +
+        ".",
+    );
     process.exit(0);
   }
 
   const uniqueAddrs = new Set(targets.map((c) => c.address));
-  console.error(`Found ${targets.length} deposit-only positions across ${uniqueAddrs.size} addresses`);
+  const borrowers = targets.filter((c) => c.scaledBorrows > 0);
+  const depositOnly = targets.filter((c) => c.scaledBorrows === 0);
+
+  console.error(`Found ${targets.length} positions across ${uniqueAddrs.size} addresses`);
+  console.error(`  Borrowers:     ${borrowers.length}`);
+  console.error(`  Deposit-only:  ${depositOnly.length}`);
+  if (opts.symbol) console.error(`Symbol filter: ${opts.symbol}`);
   console.error(`Priorities: ${opts.priorities.join(", ")}`);
   console.error(`Mode: ${opts.submit ? "SUBMIT" : "DRY-RUN"}\n`);
 
@@ -190,7 +200,8 @@ async function main() {
       return;
     }
 
-    const label = `${candidate.symbol} ${candidate.address.slice(0, 8)}...${candidate.address.slice(-4)} (${candidate.priority}, ${candidate.priceChangePercent}%)`;
+    const type = candidate.scaledBorrows > 0 ? "borrow" : "deposit";
+    const label = `${candidate.symbol} ${candidate.address.slice(0, 8)}...${candidate.address.slice(-4)} (${type}, ${candidate.priority}, ${candidate.priceChangePercent}%)`;
 
     try {
       const { transactions, details } = await prepareSyncUserMarket(
@@ -238,6 +249,7 @@ async function main() {
       timestamp: new Date().toISOString(),
       mode: opts.submit ? "submit" : "dry-run",
       priorities: opts.priorities,
+      symbol: opts.symbol,
       ...results,
     };
     fs.writeFileSync(opts.output, JSON.stringify(output, null, 2) + "\n");

@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * Sync deposit-only addresses from a DorkFi staleness audit.
+ * Sync deposit-only addresses for a specific market from a DorkFi staleness audit.
  *
- * Reads audit JSON (from audit-staleness.js --json), filters for critical and
- * high priority positions belonging to deposit-only addresses (no borrows on
- * any market), then builds + signs + submits sync_user_market_for_price_change
- * transactions.
+ * Like sync-deposit-only.js, but scoped to a single market identified by
+ * --contract-id and/or --pool-id.
  *
  * Usage:
- *   node scripts/sync-deposit-only.js <audit.json> [options]
+ *   node scripts/sync-deposit-only-market.js <audit.json> --chain <chain> --contract-id <id> [options]
  *
  * Options:
+ *   --chain <chain>     Chain: voi or algorand (required)
+ *   --contract-id <id>  Filter to this contract ID (required)
+ *   --pool-id <id>      Filter to this pool ID (optional, narrows further)
  *   --dry-run           Build transactions but don't submit (default)
  *   --submit            Actually sign and submit transactions
  *   --concurrency <N>   Max parallel operations (default: 3)
@@ -28,15 +29,13 @@ import algosdk from "algosdk";
 import { prepareSyncUserMarket } from "../lib/builders.js";
 import { getAlgodClient } from "../lib/client.js";
 
-const NETWORK_TO_CHAIN = {
-  "voi-mainnet": "voi",
-  "algorand-mainnet": "algorand",
-};
-
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
     file: null,
+    chain: null,
+    contractId: null,
+    poolId: null,
     submit: false,
     concurrency: 3,
     priorities: ["critical", "high"],
@@ -48,6 +47,12 @@ function parseArgs() {
       opts.submit = true;
     } else if (args[i] === "--dry-run") {
       opts.submit = false;
+    } else if (args[i] === "--chain" && args[i + 1]) {
+      opts.chain = args[++i].toLowerCase();
+    } else if (args[i] === "--contract-id" && args[i + 1]) {
+      opts.contractId = parseInt(args[++i], 10);
+    } else if (args[i] === "--pool-id" && args[i + 1]) {
+      opts.poolId = parseInt(args[++i], 10);
     } else if (args[i] === "--concurrency" && args[i + 1]) {
       opts.concurrency = parseInt(args[++i], 10);
     } else if (args[i] === "--priority" && args[i + 1]) {
@@ -55,14 +60,17 @@ function parseArgs() {
     } else if (args[i] === "--output" && args[i + 1]) {
       opts.output = args[++i];
     } else if (args[i] === "--help") {
-      console.log(`Usage: node scripts/sync-deposit-only.js <audit.json> [options]
+      console.log(`Usage: node scripts/sync-deposit-only-market.js <audit.json> --chain <chain> --contract-id <id> [options]
 
-  <audit.json>         Path to audit JSON from audit-staleness.js --json
-  --submit             Sign and submit transactions (default: dry-run)
-  --dry-run            Build but don't submit (default)
-  --concurrency <N>    Max parallel builds (default: 3)
-  --priority <tiers>   Comma-separated priorities (default: critical,high)
-  --output <file>      Write JSON results to file
+  <audit.json>           Path to audit JSON from audit-staleness.js --json
+  --chain <chain>        Chain: voi or algorand (required)
+  --contract-id <id>     Filter to this contract ID (required)
+  --pool-id <id>         Filter to this pool ID (optional)
+  --submit               Sign and submit transactions (default: dry-run)
+  --dry-run              Build but don't submit (default)
+  --concurrency <N>      Max parallel builds (default: 3)
+  --priority <tiers>     Comma-separated priorities (default: critical,high)
+  --output <file>        Write JSON results to file
 
 Environment:
   MN      25-word Algorand mnemonic for signing`);
@@ -74,6 +82,18 @@ Environment:
 
   if (!opts.file) {
     console.error("Error: Please provide the path to an audit JSON file.");
+    console.error("Run with --help for usage.");
+    process.exit(1);
+  }
+
+  if (!opts.chain || !["voi", "algorand"].includes(opts.chain)) {
+    console.error("Error: --chain is required (voi or algorand).");
+    console.error("Run with --help for usage.");
+    process.exit(1);
+  }
+
+  if (opts.contractId == null) {
+    console.error("Error: --contract-id is required.");
     console.error("Run with --help for usage.");
     process.exit(1);
   }
@@ -90,18 +110,22 @@ function loadAudit(path) {
   return data;
 }
 
-function findDepositOnlyCandidates(candidates, priorities) {
-  const borrowerAddresses = new Set(
-    candidates.filter((c) => c.scaledBorrows > 0).map((c) => c.address),
-  );
+const CHAIN_TO_NETWORK = {
+  voi: "voi-mainnet",
+  algorand: "algorand-mainnet",
+};
 
+function findDepositOnlyCandidates(candidates, priorities, chain, contractId, poolId) {
+  const network = CHAIN_TO_NETWORK[chain];
   const prioritySet = new Set(priorities);
 
   return candidates.filter(
     (c) =>
       prioritySet.has(c.priority) &&
       c.scaledDeposits > 0 &&
-      !borrowerAddresses.has(c.address),
+      c.network === network &&
+      c.contractId === contractId &&
+      (poolId == null || c.poolId === poolId),
   );
 }
 
@@ -145,14 +169,27 @@ async function processBatch(tasks, concurrency) {
 async function main() {
   const opts = parseArgs();
   const audit = loadAudit(opts.file);
-  const targets = findDepositOnlyCandidates(audit.candidates, opts.priorities);
+  const targets = findDepositOnlyCandidates(
+    audit.candidates,
+    opts.priorities,
+    opts.chain,
+    opts.contractId,
+    opts.poolId,
+  );
 
   if (targets.length === 0) {
-    console.log("No deposit-only positions found at the requested priorities.");
+    console.log(
+      `No deposit-only positions found for contract ${opts.contractId}` +
+        (opts.poolId != null ? ` in pool ${opts.poolId}` : "") +
+        ` at priorities [${opts.priorities.join(", ")}].`,
+    );
     process.exit(0);
   }
 
   const uniqueAddrs = new Set(targets.map((c) => c.address));
+  const symbolSet = new Set(targets.map((c) => c.symbol));
+  console.error(`Chain: ${opts.chain}`);
+  console.error(`Market: contract=${opts.contractId}` + (opts.poolId != null ? ` pool=${opts.poolId}` : "") + ` symbol=${[...symbolSet].join(",")}`);
   console.error(`Found ${targets.length} deposit-only positions across ${uniqueAddrs.size} addresses`);
   console.error(`Priorities: ${opts.priorities.join(", ")}`);
   console.error(`Mode: ${opts.submit ? "SUBMIT" : "DRY-RUN"}\n`);
@@ -183,18 +220,11 @@ async function main() {
   const results = { success: [], failed: [], skipped: [] };
 
   const tasks = targets.map((candidate) => async () => {
-    const chain = NETWORK_TO_CHAIN[candidate.network];
-    if (!chain) {
-      console.error(`  [skip] Unknown network: ${candidate.network}`);
-      results.skipped.push(candidate);
-      return;
-    }
-
     const label = `${candidate.symbol} ${candidate.address.slice(0, 8)}...${candidate.address.slice(-4)} (${candidate.priority}, ${candidate.priceChangePercent}%)`;
 
     try {
       const { transactions, details } = await prepareSyncUserMarket(
-        chain,
+        opts.chain,
         candidate.symbol,
         candidate.address,
         sender,
@@ -207,7 +237,7 @@ async function main() {
       }
 
       const signed = signTxnGroup(transactions, sk);
-      const algod = getAlgodClient(chain);
+      const algod = getAlgodClient(opts.chain);
       const txId = await submitGroup(algod, signed);
       await waitForConfirmation(algod, txId);
 
@@ -222,9 +252,11 @@ async function main() {
   await processBatch(tasks, opts.concurrency);
 
   console.error(`\n── Summary ──────────────────────────────────`);
-  console.error(`  Success: ${results.success.length}`);
-  console.error(`  Failed:  ${results.failed.length}`);
-  console.error(`  Skipped: ${results.skipped.length}`);
+  console.error(`  Contract: ${opts.contractId}`);
+  if (opts.poolId != null) console.error(`  Pool:     ${opts.poolId}`);
+  console.error(`  Success:  ${results.success.length}`);
+  console.error(`  Failed:   ${results.failed.length}`);
+  console.error(`  Skipped:  ${results.skipped.length}`);
 
   if (results.failed.length > 0) {
     console.error(`\nFailed positions:`);
@@ -237,6 +269,9 @@ async function main() {
     const output = {
       timestamp: new Date().toISOString(),
       mode: opts.submit ? "submit" : "dry-run",
+      chain: opts.chain,
+      contractId: opts.contractId,
+      poolId: opts.poolId,
       priorities: opts.priorities,
       ...results,
     };
