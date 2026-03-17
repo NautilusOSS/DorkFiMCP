@@ -26,6 +26,14 @@ const server = new McpServer({
 
 const ChainEnum = z.enum(["voi", "algorand"]);
 
+function ok(data) {
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+
+function fail(err) {
+  return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+}
+
 // --- Market tools ---
 
 server.tool(
@@ -36,8 +44,7 @@ server.tool(
     symbol: z.string().optional().describe("Filter by token symbol (e.g. VOI, USDC)"),
   },
   async ({ chain, symbol }) => {
-    const markets = await getMarkets(chain, symbol);
-    return { content: [{ type: "text", text: JSON.stringify(markets, null, 2) }] };
+    try { return ok(await getMarkets(chain, symbol)); } catch (e) { return fail(e); }
   }
 );
 
@@ -49,8 +56,7 @@ server.tool(
     symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
   },
   async ({ chain, symbol }) => {
-    const market = await getMarketOnChain(chain, symbol);
-    return { content: [{ type: "text", text: JSON.stringify(market, null, 2) }] };
+    try { return ok(await getMarketOnChain(chain, symbol)); } catch (e) { return fail(e); }
   }
 );
 
@@ -61,8 +67,7 @@ server.tool(
     chain: ChainEnum.describe("Blockchain network"),
   },
   async ({ chain }) => {
-    const result = await getIsPaused(chain);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await getIsPaused(chain)); } catch (e) { return fail(e); }
   }
 );
 
@@ -73,8 +78,7 @@ server.tool(
     chain: ChainEnum.optional().describe("Filter by chain, or omit for all chains"),
   },
   async ({ chain }) => {
-    const tvl = await fetchTVL(chain);
-    return { content: [{ type: "text", text: JSON.stringify(tvl, null, 2) }] };
+    try { return ok(await fetchTVL(chain)); } catch (e) { return fail(e); }
   }
 );
 
@@ -89,8 +93,7 @@ server.tool(
     symbol: z.string().optional().describe("Filter by token symbol"),
   },
   async ({ chain, address, symbol }) => {
-    const position = await getPosition(chain, address, symbol);
-    return { content: [{ type: "text", text: JSON.stringify(position, null, 2) }] };
+    try { return ok(await getPosition(chain, address, symbol)); } catch (e) { return fail(e); }
   }
 );
 
@@ -102,8 +105,7 @@ server.tool(
     address: z.string().describe("User wallet address"),
   },
   async ({ chain, address }) => {
-    const health = await getHealthFactor(chain, address);
-    return { content: [{ type: "text", text: JSON.stringify(health, null, 2) }] };
+    try { return ok(await getHealthFactor(chain, address)); } catch (e) { return fail(e); }
   }
 );
 
@@ -116,8 +118,7 @@ server.tool(
     symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
   },
   async ({ chain, address, symbol }) => {
-    const user = await getUserOnChain(chain, address, symbol);
-    return { content: [{ type: "text", text: JSON.stringify(user, null, 2) }] };
+    try { return ok(await getUserOnChain(chain, address, symbol)); } catch (e) { return fail(e); }
   }
 );
 
@@ -129,8 +130,7 @@ server.tool(
     address: z.string().describe("User wallet address"),
   },
   async ({ chain, address }) => {
-    const result = await getGlobalUserOnChain(chain, address);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await getGlobalUserOnChain(chain, address)); } catch (e) { return fail(e); }
   }
 );
 
@@ -141,8 +141,7 @@ server.tool(
     chain: ChainEnum.describe("Blockchain network"),
   },
   async ({ chain }) => {
-    const result = await getAllUsers(chain);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await getAllUsers(chain)); } catch (e) { return fail(e); }
   }
 );
 
@@ -169,12 +168,9 @@ server.tool(
       .describe("Specific addresses to check instead of scanning all"),
   },
   async ({ chain, threshold, limit, addresses }) => {
-    const result = await getLiquidationCandidates(chain, {
-      threshold,
-      limit,
-      addresses: addresses || [],
-    });
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try {
+      return ok(await getLiquidationCandidates(chain, { threshold, limit, addresses: addresses || [] }));
+    } catch (e) { return fail(e); }
   }
 );
 
@@ -190,8 +186,7 @@ server.tool(
     sender: z.string().describe("Sender wallet address"),
   },
   async ({ chain, symbol, amount, sender }) => {
-    const result = await prepareSupply(chain, symbol, amount, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareSupply(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -205,8 +200,7 @@ server.tool(
     sender: z.string().describe("Borrower wallet address"),
   },
   async ({ chain, symbol, amount, sender }) => {
-    const result = await prepareBorrow(chain, symbol, amount, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareBorrow(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -220,8 +214,7 @@ server.tool(
     sender: z.string().describe("Repayer wallet address"),
   },
   async ({ chain, symbol, amount, sender }) => {
-    const result = await prepareRepay(chain, symbol, amount, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareRepay(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -236,8 +229,7 @@ server.tool(
     sender: z.string().describe("Repayer wallet address (the one paying)"),
   },
   async ({ chain, symbol, amount, borrower, sender }) => {
-    const result = await prepareRepayOnBehalf(chain, symbol, amount, borrower, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareRepayOnBehalf(chain, symbol, amount, borrower, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -250,8 +242,7 @@ server.tool(
     sender: z.string().describe("Repayer wallet address"),
   },
   async ({ chain, symbol, sender }) => {
-    const result = await prepareRepayAll(chain, symbol, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareRepayAll(chain, symbol, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -265,8 +256,7 @@ server.tool(
     sender: z.string().describe("Withdrawer wallet address"),
   },
   async ({ chain, symbol, amount, sender }) => {
-    const result = await prepareWithdraw(chain, symbol, amount, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareWithdraw(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -279,8 +269,7 @@ server.tool(
     sender: z.string().describe("Transaction sender wallet address"),
   },
   async ({ chain, symbol, sender }) => {
-    const result = await prepareFetchPriceFeed(chain, symbol, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareFetchPriceFeed(chain, symbol, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -293,8 +282,7 @@ server.tool(
     sender: z.string().describe("Transaction sender wallet address"),
   },
   async ({ chain, symbol, sender }) => {
-    const result = await prepareSyncMarket(chain, symbol, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareSyncMarket(chain, symbol, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -308,8 +296,7 @@ server.tool(
     sender: z.string().describe("Owner/admin wallet address"),
   },
   async ({ chain, symbol, amount, sender }) => {
-    const result = await prepareWithdrawReserves(chain, symbol, amount, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareWithdrawReserves(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -323,8 +310,7 @@ server.tool(
     sender: z.string().describe("Transaction sender wallet address"),
   },
   async ({ chain, symbol, user, sender }) => {
-    const result = await prepareSyncUserMarket(chain, symbol, user, sender);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try { return ok(await prepareSyncUserMarket(chain, symbol, user, sender)); } catch (e) { return fail(e); }
   }
 );
 
@@ -340,15 +326,9 @@ server.tool(
     sender: z.string().describe("Liquidator wallet address"),
   },
   async ({ chain, borrower, collateral_symbol, debt_symbol, amount, sender }) => {
-    const result = await prepareLiquidation(
-      chain,
-      borrower,
-      collateral_symbol,
-      debt_symbol,
-      amount,
-      sender
-    );
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    try {
+      return ok(await prepareLiquidation(chain, borrower, collateral_symbol, debt_symbol, amount, sender));
+    } catch (e) { return fail(e); }
   }
 );
 
