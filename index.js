@@ -127,7 +127,7 @@ server.tool(
 
 server.tool(
   "get_health_factor",
-  "Check a user's health factor and risk level per pool. Health factor <= 1.0 means the position is liquidatable.",
+  "Check a user's health factor and risk level. Health factors are calculated per pool (see pools[]); liquidation is per-pool. aggregateHealthFactor is cross-pool informational only.",
   {
     chain: ChainEnum.describe("Blockchain network"),
     address: z.string().describe("User wallet address"),
@@ -166,7 +166,7 @@ server.tool(
 
 server.tool(
   "get_users",
-  "List all DorkFi users with aggregate health factors, collateral, borrows, and risk levels. Sorted by health factor (most at-risk first).",
+  "List all DorkFi users. Health factors are per-pool (see each user's pools[]); liquidation is per-pool. Sorted by aggregateHealthFactor (most at-risk first).",
   {
     chain: ChainEnum.describe("Blockchain network"),
   },
@@ -288,12 +288,12 @@ server.tool(
 
 server.tool(
   "withdraw_txn",
-  "Build unsigned withdraw txs.",
+  "Build unsigned withdraw txs. Amount can be supplied as the nToken balance (e.g. nCORN) in human-readable units.",
   {
     chain: ChainEnum.describe("Blockchain network"),
     poolId,
     marketId,
-    amount: z.string().describe("Amount in human-readable units"),
+    amount: z.string().describe("Amount in human-readable units (nToken balance, e.g. nCORN, can be supplied as argument)"),
     sender: z.string().describe("Withdrawer wallet address"),
   },
   async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {

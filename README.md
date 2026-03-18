@@ -62,13 +62,15 @@ Every lending **market** is addressed by:
 |------|-------------|
 | `get_position` | User positions (optional filter **`poolId` + `marketId`**) |
 | `get_user` | On-chain **`get_user`** for **`poolId` + `marketId`** |
-| `get_health_factor` | Health factor and risk per pool |
+| `get_health_factor` | Health factor and risk. **Health factors are per-pool** (liquidation is per-pool); response includes `pools[]` and optional `aggregateHealthFactor`. |
 
 ### Liquidations
 
+Health factors and liquidation eligibility are **per-pool**; a user can be liquidatable in one pool and safe in another.
+
 | Tool | Description |
 |------|-------------|
-| `get_liquidation_candidates` | Find undercollateralized accounts from pre-indexed health data |
+| `get_liquidation_candidates` | Find undercollateralized accounts from pre-indexed health data (per-pool) |
 
 ### Transaction Preparation
 

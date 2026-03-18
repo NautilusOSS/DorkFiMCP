@@ -249,9 +249,9 @@ async function broadcast(opts) {
 }
 
 function planMatch(u, o) {
-  if (u.healthFactor === null) return false;
+  if (u.aggregateHealthFactor === null) return false;
   if (o.exclude.has(u.address)) return false;
-  if (o.threshold != null) return u.healthFactor <= o.threshold;
+  if (o.threshold != null) return u.aggregateHealthFactor <= o.threshold;
   return o.riskLevels.includes(u.riskLevel);
 }
 
@@ -271,7 +271,7 @@ async function plan(opts) {
       chain: opts.chain,
       accounts: atRisk.map((u) => ({
         address: u.address,
-        healthFactor: u.healthFactor,
+        aggregateHealthFactor: u.aggregateHealthFactor,
         riskLevel: u.riskLevel,
         command: cmd(u.address),
       })),
@@ -303,7 +303,7 @@ async function plan(opts) {
     if (!acc.length) continue;
     lines.push(`# ── ${label} (${acc.length}) ──`);
     for (const u of acc) {
-      lines.push(`# HF ${u.healthFactor?.toFixed(4)}`);
+      lines.push(`# HF ${u.aggregateHealthFactor?.toFixed(4)}`);
       lines.push(cmd(u.address));
       lines.push("");
     }
