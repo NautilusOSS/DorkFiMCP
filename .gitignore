@@ -1,8 +1,14 @@
 node_modules/
 dist/
+
+# One-off / issue-specific notes (not general project documentation)
+issue-notes/*
+!issue-notes/README.md
+
 .env
 *.log
 log
 *.json
 *.txt
 commands
+issue-notes

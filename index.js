@@ -21,7 +21,7 @@ import {
 
 const server = new McpServer({
   name: "dorkfi-mcp",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 const ChainEnum = z.enum(["voi", "algorand"]);
@@ -34,29 +34,40 @@ function fail(err) {
   return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
 }
 
+/** Lending pool app id (e.g. 47139778, 47139781 on Voi). */
+const poolId = z.number().int().describe("Lending pool application id");
+/** On-chain market id = ARC-200 / token contract id for that pool row (same as contractId in data/contracts.json). */
+const marketId = z.number().int().describe("Market id (uint64 passed to pool; equals contractId in contracts.json)");
+
 // --- Market tools ---
 
 server.tool(
   "get_markets",
-  "List DorkFi lending markets with live data (rates, deposits, borrows, prices). Optionally filter by symbol.",
+  "List DorkFi lending markets with live data. Each row includes poolId + marketId. Omit poolId/marketId to list all; pass both to fetch one market.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().optional().describe("Filter by token symbol (e.g. VOI, USDC)"),
+    poolId: z.number().int().optional().describe("Lending pool app id"),
+    marketId: z.number().int().optional().describe("Market id (contractId)"),
   },
-  async ({ chain, symbol }) => {
-    try { return ok(await getMarkets(chain, symbol)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid }) => {
+    const filter =
+      pid != null && mid != null ? { poolId: pid, marketId: mid } : null;
+    const markets = await getMarkets(chain, filter);
+    return { content: [{ type: "text", text: JSON.stringify(markets, null, 2) }] };
   }
 );
 
 server.tool(
   "get_market",
-  "Get a single DorkFi lending market's full on-chain data by calling the pool contract's get_market ABI method via algod simulate.",
+  "Get one lending market's full on-chain data via get_market(pool, marketId). Identify market by poolId + marketId (not symbol).",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
+    poolId,
+    marketId,
   },
-  async ({ chain, symbol }) => {
-    try { return ok(await getMarketOnChain(chain, symbol)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid }) => {
+    const market = await getMarketOnChain(chain, pid, mid);
+    return { content: [{ type: "text", text: JSON.stringify(market, null, 2) }] };
   }
 );
 
@@ -86,14 +97,31 @@ server.tool(
 
 server.tool(
   "get_position",
-  "Get a user's DorkFi lending positions across all markets. Returns per-pool health factors and portfolio summary.",
+  "Get a user's DorkFi lending positions. Optional poolId + marketId narrows to one market row.",
   {
     chain: ChainEnum.describe("Blockchain network"),
     address: z.string().describe("User wallet address"),
-    symbol: z.string().optional().describe("Filter by token symbol"),
+    poolId: z.number().int().optional().describe("Lending pool app id"),
+    marketId: z.number().int().optional().describe("Market id (contractId)"),
   },
-  async ({ chain, address, symbol }) => {
-    try { return ok(await getPosition(chain, address, symbol)); } catch (e) { return fail(e); }
+  async ({ chain, address, poolId: pid, marketId: mid }) => {
+    const filter =
+      pid != null && mid != null ? { poolId: pid, marketId: mid } : null;
+    if ((pid != null) !== (mid != null)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "get_position requires both poolId and marketId, or neither",
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const position = await getPosition(chain, address, filter);
+    return { content: [{ type: "text", text: JSON.stringify(position, null, 2) }] };
   }
 );
 
@@ -111,14 +139,16 @@ server.tool(
 
 server.tool(
   "get_user",
-  "Get a user's on-chain position data for a specific DorkFi lending market by calling the pool contract's get_user ABI method via algod simulate.",
+  "Get on-chain get_user for one market. Use poolId + marketId from get_markets (not symbol alone — WAD exists in two pools on Voi).",
   {
     chain: ChainEnum.describe("Blockchain network"),
     address: z.string().describe("User wallet address"),
-    symbol: z.string().describe("Token symbol (e.g. VOI, USDC, ALGO)"),
+    poolId,
+    marketId,
   },
-  async ({ chain, address, symbol }) => {
-    try { return ok(await getUserOnChain(chain, address, symbol)); } catch (e) { return fail(e); }
+  async ({ chain, address, poolId: pid, marketId: mid }) => {
+    const user = await getUserOnChain(chain, address, pid, mid);
+    return { content: [{ type: "text", text: JSON.stringify(user, null, 2) }] };
   }
 );
 
@@ -174,164 +204,205 @@ server.tool(
   }
 );
 
-// --- Transaction preparation tools ---
+// --- Transaction preparation ---
 
 server.tool(
   "deposit_txn",
-  "Build unsigned transactions to deposit (supply) tokens into a DorkFi lending market. Returns base64-encoded transactions for signing via UluWalletMCP.",
+  "Build unsigned deposit (supply) txs. Market = poolId + marketId from get_markets.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to supply (e.g. VOI, USDC)"),
-    amount: z.string().describe("Amount in human-readable units (e.g. '100' for 100 VOI)"),
+    poolId,
+    marketId,
+    amount: z.string().describe("Amount in human-readable units"),
     sender: z.string().describe("Sender wallet address"),
   },
-  async ({ chain, symbol, amount, sender }) => {
-    try { return ok(await prepareSupply(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {
+    const result = await prepareSupply(chain, pid, mid, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "borrow_txn",
-  "Build unsigned transactions to borrow tokens from a DorkFi lending market. Requires sufficient collateral. Returns base64-encoded transactions for signing.",
+  "Build unsigned borrow txs.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to borrow"),
+    poolId,
+    marketId,
     amount: z.string().describe("Amount in human-readable units"),
     sender: z.string().describe("Borrower wallet address"),
   },
-  async ({ chain, symbol, amount, sender }) => {
-    try { return ok(await prepareBorrow(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {
+    const result = await prepareBorrow(chain, pid, mid, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "repay_txn",
-  "Build unsigned transactions to repay borrowed tokens to a DorkFi lending market. Returns base64-encoded transactions for signing.",
+  "Build unsigned repay txs.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to repay"),
+    poolId,
+    marketId,
     amount: z.string().describe("Amount in human-readable units"),
     sender: z.string().describe("Repayer wallet address"),
   },
-  async ({ chain, symbol, amount, sender }) => {
-    try { return ok(await prepareRepay(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {
+    const result = await prepareRepay(chain, pid, mid, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "repay_on_behalf_txn",
-  "Build unsigned transactions to repay another user's borrowed tokens to a DorkFi lending market. The sender pays the debt on behalf of the borrower. Returns base64-encoded transactions for signing.",
+  "Build unsigned repay-on-behalf txs.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to repay"),
+    poolId,
+    marketId,
     amount: z.string().describe("Amount in human-readable units"),
-    borrower: z.string().describe("Address of the borrower whose debt is being repaid"),
-    sender: z.string().describe("Repayer wallet address (the one paying)"),
+    borrower: z.string().describe("Borrower address"),
+    sender: z.string().describe("Repayer wallet address"),
   },
-  async ({ chain, symbol, amount, borrower, sender }) => {
-    try { return ok(await prepareRepayOnBehalf(chain, symbol, amount, borrower, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, borrower, sender }) => {
+    const result = await prepareRepayOnBehalf(chain, pid, mid, amount, borrower, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "repay_all_txn",
-  "Build unsigned transactions to repay a user's entire borrow balance for a DorkFi lending market. Queries the on-chain borrow amount, wraps tokens if needed, then calls repay_all. Returns base64-encoded transactions for signing.",
+  "Build unsigned repay_all txs.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to repay"),
+    poolId,
+    marketId,
     sender: z.string().describe("Repayer wallet address"),
   },
-  async ({ chain, symbol, sender }) => {
-    try { return ok(await prepareRepayAll(chain, symbol, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, sender }) => {
+    const result = await prepareRepayAll(chain, pid, mid, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "withdraw_txn",
-  "Build unsigned transactions to withdraw supplied tokens from a DorkFi lending market. Returns base64-encoded transactions for signing.",
+  "Build unsigned withdraw txs.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol to withdraw"),
+    poolId,
+    marketId,
     amount: z.string().describe("Amount in human-readable units"),
     sender: z.string().describe("Withdrawer wallet address"),
   },
-  async ({ chain, symbol, amount, sender }) => {
-    try { return ok(await prepareWithdraw(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {
+    const result = await prepareWithdraw(chain, pid, mid, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "fetch_price_feed_txn",
-  "Build unsigned transactions to fetch the latest oracle price for a DorkFi lending market. Calls fetch_price_feed(uint64) on the pool contract. Returns base64-encoded transactions for signing.",
+  "Build unsigned fetch_price_feed tx.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol of the market to fetch price for (e.g. VOI, USDC)"),
-    sender: z.string().describe("Transaction sender wallet address"),
+    poolId,
+    marketId,
+    sender: z.string().describe("Transaction sender"),
   },
-  async ({ chain, symbol, sender }) => {
-    try { return ok(await prepareFetchPriceFeed(chain, symbol, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, sender }) => {
+    const result = await prepareFetchPriceFeed(chain, pid, mid, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "sync_market_txn",
-  "Build unsigned transactions to sync a DorkFi lending market's state (interest accrual, index updates). Calls sync_market(uint64) on the pool contract. Returns base64-encoded transactions for signing.",
+  "Build unsigned sync_market tx.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol of the market to sync (e.g. VOI, USDC)"),
-    sender: z.string().describe("Transaction sender wallet address"),
+    poolId,
+    marketId,
+    sender: z.string().describe("Transaction sender"),
   },
-  async ({ chain, symbol, sender }) => {
-    try { return ok(await prepareSyncMarket(chain, symbol, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, sender }) => {
+    const result = await prepareSyncMarket(chain, pid, mid, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "withdraw_reserves_txn",
-  "Build unsigned transactions to withdraw accumulated reserves from a DorkFi lending market. Owner/admin only. Returns base64-encoded transactions for signing.",
+  "Build unsigned withdraw_reserves (admin).",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol of the market"),
-    amount: z.string().describe("Amount of reserves to withdraw in human-readable units"),
-    sender: z.string().describe("Owner/admin wallet address"),
+    poolId,
+    marketId,
+    amount: z.string().describe("Reserves amount (human units)"),
+    sender: z.string().describe("Owner/admin address"),
   },
-  async ({ chain, symbol, amount, sender }) => {
-    try { return ok(await prepareWithdrawReserves(chain, symbol, amount, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, amount, sender }) => {
+    const result = await prepareWithdrawReserves(chain, pid, mid, amount, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "sync_user_market_for_price_change_txn",
-  "Build unsigned transactions to sync a user's market position after an oracle price change. Updates the user's collateral and borrow values in the pool contract. Returns base64-encoded transactions for signing.",
+  "Build unsigned sync_user_market_for_price_change tx.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    symbol: z.string().describe("Token symbol of the market to sync"),
-    user: z.string().describe("Address of the user whose position to sync"),
-    sender: z.string().describe("Transaction sender wallet address"),
+    poolId,
+    marketId,
+    user: z.string().describe("User to sync"),
+    sender: z.string().describe("Transaction sender"),
   },
-  async ({ chain, symbol, user, sender }) => {
-    try { return ok(await prepareSyncUserMarket(chain, symbol, user, sender)); } catch (e) { return fail(e); }
+  async ({ chain, poolId: pid, marketId: mid, user, sender }) => {
+    const result = await prepareSyncUserMarket(chain, pid, mid, user, sender);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
 server.tool(
   "liquidate_txn",
-  "Build unsigned transactions to liquidate an undercollateralized position. The liquidator repays part of the debt and receives collateral at a bonus. Returns base64-encoded transactions for signing.",
+  "Liquidate: repay debt in debtMarketId, seize collateral in collateralMarketId. Same poolId for both. marketId = contractId from get_markets.",
   {
     chain: ChainEnum.describe("Blockchain network"),
-    borrower: z.string().describe("Address of the borrower to liquidate"),
-    collateral_symbol: z.string().describe("Collateral token to seize"),
-    debt_symbol: z.string().describe("Debt token to repay"),
-    amount: z.string().describe("Amount of debt to repay in human-readable units"),
-    sender: z.string().describe("Liquidator wallet address"),
+    poolId,
+    debtMarketId: z
+      .number()
+      .int()
+      .describe("Debt market id (e.g. WAD = 47138068 in pool 47139781)"),
+    collateralMarketId: z
+      .number()
+      .int()
+      .describe("Collateral market id (e.g. CORN = 412682)"),
+    borrower: z.string().describe("Borrower to liquidate"),
+    amount: z.string().describe("Debt to repay (human units)"),
+    sender: z.string().describe("Liquidator address"),
   },
-  async ({ chain, borrower, collateral_symbol, debt_symbol, amount, sender }) => {
-    try {
-      return ok(await prepareLiquidation(chain, borrower, collateral_symbol, debt_symbol, amount, sender));
-    } catch (e) { return fail(e); }
+  async ({
+    chain,
+    poolId: pid,
+    debtMarketId,
+    collateralMarketId,
+    borrower,
+    amount,
+    sender,
+  }) => {
+    const result = await prepareLiquidation(
+      chain,
+      pid,
+      debtMarketId,
+      collateralMarketId,
+      borrower,
+      amount,
+      sender
+    );
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   }
 );
 
-// Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);

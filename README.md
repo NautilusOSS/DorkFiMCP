@@ -32,21 +32,37 @@ UluCoreMCP / UluVoiMCP / UluAlgorandMCP / UluWalletMCP / UluBroadcastMCP
 - Broadcast transactions (use UluBroadcastMCP)
 - Manage wallets
 
-## Tools
+## Documentation
+
+- **[docs/index.md](docs/index.md)** — doc index (MCP vs scripts)
+- **[docs/SCRIPTS.md](docs/SCRIPTS.md)** — CLI scripts (audit, staleness sync, notifications)
+
+## Market identity (`poolId` + `marketId`)
+
+Every lending **market** is addressed by:
+
+| Field | Meaning |
+|-------|--------|
+| **`poolId`** | Lending pool application id (e.g. Voi main `47139778`, community `47139781`) |
+| **`marketId`** | On-chain market id — the `uint64` passed to `get_market` / `deposit` / `borrow` / `get_user`. Same as **`contractId`** in `data/contracts.json` for that row. |
+
+`get_markets` returns both on each row. **Do not rely on symbol alone** (e.g. **WAD** exists in two pools on Voi with the same token contract id but different pool contexts — disambiguation is always `poolId` + `marketId`).
 
 ### Markets
 
 | Tool | Description |
 |------|-------------|
-| `get_markets` | List lending markets with live rates, deposits, borrows, and prices |
-| `get_tvl` | Get total value locked per market and aggregate totals |
+| `get_markets` | List all markets, or one market if you pass **`poolId` + `marketId`** |
+| `get_market` | On-chain `get_market` for **`poolId` + `marketId`** |
+| `get_tvl` | TVL per market and totals |
 
 ### Positions
 
 | Tool | Description |
 |------|-------------|
-| `get_position` | Get a user's positions with per-pool health factors |
-| `get_health_factor` | Check health factor and risk level per pool |
+| `get_position` | User positions (optional filter **`poolId` + `marketId`**) |
+| `get_user` | On-chain **`get_user`** for **`poolId` + `marketId`** |
+| `get_health_factor` | Health factor and risk per pool |
 
 ### Liquidations
 
@@ -58,16 +74,16 @@ UluCoreMCP / UluVoiMCP / UluAlgorandMCP / UluWalletMCP / UluBroadcastMCP
 
 | Tool | Description |
 |------|-------------|
-| `deposit_txn` | Build unsigned transactions to deposit (supply) tokens |
-| `borrow_txn` | Build unsigned transactions to borrow tokens |
-| `repay_txn` | Build unsigned transactions to repay debt |
-| `withdraw_txn` | Build unsigned transactions to withdraw supplied tokens |
-| `liquidate_txn` | Build unsigned transactions to liquidate a position |
+| `deposit_txn` | Supply — **`poolId` + `marketId` + amount + sender** |
+| `borrow_txn` | Borrow — same |
+| `repay_txn` / `repay_all_txn` / … | Same market addressing |
+| `withdraw_txn` | Withdraw — same |
+| `liquidate_txn` | **`poolId` + `debtMarketId` + `collateralMarketId` + borrower + amount + sender** |
 
 ## Agent Workflow
 
 ```
-Agent calls DorkFiMCP:  deposit_txn(chain, symbol, amount, sender)
+Agent calls DorkFiMCP:  deposit_txn(chain, poolId, marketId, amount, sender)
        → returns { transactions: [base64, ...] }
 
 Agent calls UluWalletMCP: wallet_sign_transactions(signerId, transactions)
@@ -91,18 +107,14 @@ index.js              MCP server entry point (11 tools)
 lib/
   api.js              DorkFi API client (dorkfi-api.nautilus.sh)
   client.js           Algod client factory, ABI definitions, simulation helpers
-  markets.js          Market data from API with symbol resolution
+  markets.js          Market data; each row has poolId + marketId
   positions.js        User positions and health factors from API
   liquidation.js      Liquidation candidates from pre-indexed health data
   builders.js         Unsigned transaction group builders (on-chain)
 scripts/
-  audit-staleness.js          Full staleness audit across all users
-  audit-account.js            Single-account audit
-  summarize-audit.js          Summarize audit JSON reports
-  sync-deposit-only.js        Batch sync deposit-only users
-  sync-deposit-only-market.js Sync deposit-only users for a specific market
-  send-liquidation-warning.js Send liquidation warning to one address
-  broadcast-notification.js   Broadcast notification to all users
+  audit.js                    account | staleness | summary
+  sync-position.js            Stale sync (all positions, or --deposit-only, optional market filter)
+  notify.js                   User notifications (send-one | broadcast | plan)
 data/
   contracts.json      Chain configs, pool IDs, and token definitions
 ```
@@ -138,40 +150,42 @@ Standalone scripts for auditing, syncing, and notifying DorkFi users. All script
 
 | npm script | Command | Description |
 |------------|---------|-------------|
-| `audit:staleness` | `node scripts/audit-staleness.js` | Full audit of user-market staleness across all positions. Compares each user's on-chain `lastPrice` against the current oracle price and reports stale positions grouped by priority. |
-| `audit:account` | `node scripts/audit-account.js` | Audit a single account across all markets on one or both chains. Reports stale positions and optionally syncs them. |
-| `audit:summary` | `node scripts/summarize-audit.js` | Summarize an audit JSON report with per-network, per-symbol, and per-priority breakdowns. |
-| `sync:deposit-only` | `node scripts/sync-deposit-only.js` | Batch-sync deposit-only addresses from a staleness audit. Filters for users with no borrows and submits `sync_user_market_for_price_change` transactions. |
-| `sync:deposit-only-market` | `node scripts/sync-deposit-only-market.js` | Same as `sync:deposit-only` but scoped to a single market via `--chain` and `--contract-id`. |
-| `send:liquidation-warning` | `node scripts/send-liquidation-warning.js` | Send a 0-amount payment with a liquidation-risk warning in the transaction note to a specific address. |
-| `broadcast:notification` | `node scripts/broadcast-notification.js` | Broadcast a notification to all DorkFi users on a chain via 0-amount payment transaction notes. |
+| `audit` | `node scripts/audit.js` | **`--mode account`** (one wallet), **`staleness`** (full scan, `--json` → artifact), **`summary`** (read artifact). Aliases: `audit:account`, `audit:staleness`, `audit:summary`. |
+| `sync:position` | `node scripts/sync-position.js` | Sync stale rows from an audit (default: all borrowers + depositors). See [docs/SCRIPTS.md](docs/SCRIPTS.md). |
+| `sync:deposit-only` | same + `--deposit-only` | Only users with no borrows anywhere. |
+| `sync:deposit-only-market` | same + `--deposit-only --chain … --contract-id …` | Deposit-only, one market (alias npm script). |
+| `notify` | `node scripts/notify.js` | **`--mode send-one`** (urgent note, one address), **`broadcast`** (all users), **`plan`** (shell commands for at-risk users). See [docs/SCRIPTS.md](docs/SCRIPTS.md). |
+| `send:liquidation-warning` | notify `--mode send-one` | Alias. |
+| `broadcast:notification` | notify `--mode broadcast` | Alias (`--max` caps recipients). |
+| `generate:notification-commands` | notify `--mode plan` | Alias. |
 
 ### Typical workflow
 
 ```bash
-# 1. Run a full staleness audit and save JSON
+# 1. Full staleness audit → JSON
 npm run audit:staleness -- --json -o audit.json
 
-# 2. Summarize the audit
+# 2. Summarize JSON
 npm run audit:summary -- audit.json
 
-# 3. Dry-run sync for deposit-only users (critical + high priority)
-npm run sync:deposit-only -- audit.json --dry-run
+# 3. Dry-run sync (all stale rows, or deposit-only)
+npm run sync:position -- audit.json
+npm run sync:position -- audit.json --deposit-only
 
-# 4. Sync deposit-only users for a specific market
-npm run sync:deposit-only-market -- audit.json --chain voi --contract-id 420069
+# 4. Deposit-only, one market
+npm run sync:position -- audit.json --deposit-only --chain voi --contract-id 420069
 
-# 5. Submit sync transactions (requires MN env var)
-MN="your mnemonic" npm run sync:deposit-only -- audit.json --submit
+# 5. Submit (requires MN)
+MN="your mnemonic" npm run sync:position -- audit.json --deposit-only --submit
 
-# 6. Audit a single account
+# 6. Audit one account (address or enVoi)
 npm run audit:account -- <ADDRESS> --chain voi
+npm run audit:account -- shelly.voi --chain voi
 
-# 7. Send liquidation warning to a specific user
-MN="your mnemonic" npm run send:liquidation-warning -- --chain voi --address <RECIPIENT> --submit
-
-# 8. Broadcast notification to all users on a chain
-MN="your mnemonic" npm run broadcast:notification -- --chain voi --submit
+# 7. Notify one user (urgent) or broadcast / plan
+MN="…" npm run send:liquidation-warning -- --chain voi --address <ADDR> --submit
+MN="…" npm run broadcast:notification -- --chain voi --submit --max 50   # optional cap
+npm run generate:notification-commands -- --chain voi   # prints notify send-one lines
 ```
 
 ### Common options
@@ -233,10 +247,8 @@ Transaction preparation uses the verified ABI from [`DorkFiLendingPoolClient.ts`
 
 ## Known Limitations
 
-1. **WAD in multiple pools** — WAD appears in two pools per chain. `findMarket` returns the first match. For borrow-only WAD pools, specify the pool ID explicitly if needed.
+1. **Transaction groups** — The `prepare_*` tools build simplified transaction groups. The DorkFi frontend uses `ulujs` CONTRACT class for more sophisticated group construction with automatic box funding and resource sharing.
 
-2. **Transaction groups** — The `prepare_*` tools build simplified transaction groups. The DorkFi frontend uses `ulujs` CONTRACT class for more sophisticated group construction with automatic box funding and resource sharing.
+2. **Price scale** — Prices from the API use 18 decimal precision referenced against aUSDC = 1,000,000. USD values in health/position responses are approximated by dividing raw values by 10^12.
 
-3. **Price scale** — Prices from the API use 18 decimal precision referenced against aUSDC = 1,000,000. USD values in health/position responses are approximated by dividing raw values by 10^12.
-
-4. **API freshness** — Read data comes from the DorkFi API which periodically refreshes from on-chain state. For the most current data, the API's POST endpoints can trigger a fresh blockchain query.
+3. **API freshness** — Read data comes from the DorkFi API which periodically refreshes from on-chain state. For the most current data, the API's POST endpoints can trigger a fresh blockchain query.

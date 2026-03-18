@@ -6,15 +6,17 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "audit:account": "node scripts/audit-account.js",
-    "audit:name": "node scripts/audit-name.js",
-    "audit:staleness": "node scripts/audit-staleness.js",
-    "audit:summary": "node scripts/summarize-audit.js",
-    "sync:deposit-only": "node scripts/sync-deposit-only.js",
-    "sync:deposit-only-market": "node scripts/sync-deposit-only-market.js",
-    "broadcast:notification": "node scripts/broadcast-notification.js",
-    "send:liquidation-warning": "node scripts/send-liquidation-warning.js",
-    "generate:notification-commands": "node scripts/generate-notification-commands.js"
+    "audit": "node scripts/audit.js",
+    "audit:account": "node scripts/audit.js --mode account",
+    "audit:staleness": "node scripts/audit.js --mode staleness",
+    "audit:summary": "node scripts/audit.js --mode summary",
+    "sync:position": "node scripts/sync-position.js",
+    "sync:deposit-only": "node scripts/sync-position.js --deposit-only",
+    "sync:deposit-only-market": "node scripts/sync-position.js --deposit-only",
+    "notify": "node scripts/notify.js",
+    "send:liquidation-warning": "node scripts/notify.js --mode send-one",
+    "broadcast:notification": "node scripts/notify.js --mode broadcast",
+    "generate:notification-commands": "node scripts/notify.js --mode plan"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
