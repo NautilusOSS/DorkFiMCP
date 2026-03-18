@@ -10,6 +10,7 @@
     "audit:account": "node scripts/audit.js --mode account",
     "audit:staleness": "node scripts/audit.js --mode staleness",
     "audit:summary": "node scripts/audit.js --mode summary",
+    "audit-and-sync": "node scripts/audit-and-sync.js",
     "sync:position": "node scripts/sync-position.js",
     "sync:deposit-only": "node scripts/sync-position.js --deposit-only",
     "sync:deposit-only-market": "node scripts/sync-position.js --deposit-only",
