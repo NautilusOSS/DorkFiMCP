@@ -223,11 +223,11 @@ Read operations use the [DorkFi API](https://dorkfi-api.nautilus.sh/api-docs/) w
 
 **Pool 47139781:** WAD, GM, CORN, SHELLY, BUIDL, F, NODE, AMMO, IAT, bVOI, NV, EV, FV
 
-### Algorand (29 markets across 2 pools)
+### Algorand (31 markets across 2 pools)
 
-**Pool 3333688282:** ALGO, USDC, UNIT, POW, goBTC, aVOI, wBTC, goETH, wETH, LINK, SOL, AVAX, WAD (borrow-only)
+**Pool 3333688282 (A Market):** ALGO, USDC, UNIT, POW, goBTC, aVOI, wBTC, goETH, wETH, LINK, SOL, AVAX, WAD (borrow-only)
 
-**Pool 3345940978:** WAD, FINITE, FOLKS, COOP, HOG, USDt, xUSD, MONKO, HAY, BRO, ALPHA, COMPX, AKTA, PEPE, GOLD$, TINY
+**Pool 3345940978 (Community / B Markets):** WAD, FINITE, FOLKS, COOP, HOG, USDt, xUSD, MONKO, HAY, BRO, ALPHA, COMPX, AKTA, PEPE, GOLD$, TINY, ALGO (B Market), USDC (B Market)
 
 ## On-Chain ABI
 

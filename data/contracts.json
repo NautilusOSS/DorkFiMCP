@@ -530,6 +530,28 @@
         "assetId": 2200000000,
         "decimals": 6,
         "tokenStandard": "asa"
+      },
+      {
+        "symbol": "ALGO",
+        "name": "Algorand",
+        "poolId": 3345940978,
+        "contractId": 0,
+        "nTokenId": 0,
+        "assetId": 0,
+        "decimals": 6,
+        "tokenStandard": "network",
+        "note": "B Market - Contract ID and nToken ID to be assigned on deployment"
+      },
+      {
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "poolId": 3345940978,
+        "contractId": 0,
+        "nTokenId": 0,
+        "assetId": 31566704,
+        "decimals": 6,
+        "tokenStandard": "asa",
+        "note": "B Market - Contract ID and nToken ID to be assigned on deployment"
       }
     ]
   }
