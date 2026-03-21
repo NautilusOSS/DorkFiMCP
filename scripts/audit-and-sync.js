@@ -22,13 +22,15 @@
  *   --help, -h           Show this help
  *
  * Environment:
- *   MN  25-word mnemonic (required for --submit)
+ *   MN                    25-word mnemonic (required for --submit)
+ *   DISCORD_WEBHOOK_URL   Optional. If set, POST a short embed when the run finishes (success or failure).
  */
 
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadAudit, buildSummary, formatStalenessSummaryDiscordBlock } from "../lib/auditSummary.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -55,6 +57,7 @@ Options:
 
 Environment:
   MN                     Mnemonic for --submit
+  DISCORD_WEBHOOK_URL    Optional Discord webhook for run completion (success or failure)
 
 Examples:
   node scripts/audit-and-sync.js
@@ -116,6 +119,96 @@ function parseArgs() {
   return opts;
 }
 
+/**
+ * @param {{ exitCode: number; failureReason: string | null; opts: ReturnType<typeof parseArgs> | null; auditPath: string | null }} p
+ */
+const DISCORD_EMBED_DESC_MAX = 4096;
+
+async function notifyDiscordIfConfigured(p) {
+  const url = process.env.DISCORD_WEBHOOK_URL?.trim();
+  if (!url) return;
+
+  const ok = p.exitCode === 0;
+  const title = ok ? "Audit & sync completed" : "Audit & sync failed";
+  const color = ok ? 0x2ecc71 : 0xe74c3c;
+
+  let stalenessBlock = null;
+  if (ok && p.auditPath) {
+    try {
+      const audit = loadAudit(p.auditPath);
+      const summary = buildSummary(audit, 10);
+      stalenessBlock = formatStalenessSummaryDiscordBlock(summary);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Discord: could not build staleness summary:", msg);
+    }
+  }
+
+  const metaParts = [];
+  if (p.opts && p.auditPath) {
+    metaParts.push(`**Audit file:** \`${p.auditPath}\``);
+    metaParts.push(`**Submit:** ${p.opts.submit}`);
+    metaParts.push(`**Priority:** ${p.opts.priority}`);
+    if (p.opts.chain) metaParts.push(`**Chain:** ${p.opts.chain}`);
+  }
+  if (p.failureReason) metaParts.push(`**Detail:** ${p.failureReason}`);
+  else if (!ok) metaParts.push(`**Exit code:** ${p.exitCode}`);
+
+  const meta = metaParts.join("\n");
+
+  let description;
+  if (stalenessBlock) {
+    const footer = meta ? `\n\n${meta}` : "";
+    const fence = (inner) => "```\n" + inner + "\n```";
+    const fenceOverhead = 8; // "```\n" + "\n```"
+    const suffix = "\n… (truncated)";
+    const maxInner = DISCORD_EMBED_DESC_MAX - footer.length - fenceOverhead;
+    let inner =
+      stalenessBlock.length <= maxInner
+        ? stalenessBlock
+        : stalenessBlock.slice(0, Math.max(0, maxInner - suffix.length)) + suffix;
+    let text = fence(inner) + footer;
+    if (text.length > DISCORD_EMBED_DESC_MAX) {
+      inner =
+        stalenessBlock.slice(0, Math.max(0, maxInner - suffix.length - 64)) + suffix;
+      text = fence(inner) + footer;
+    }
+    description = text.slice(0, DISCORD_EMBED_DESC_MAX);
+  } else {
+    description = (meta || (ok ? "Run finished successfully." : "Run failed.")).slice(0, DISCORD_EMBED_DESC_MAX);
+  }
+
+  const body = {
+    embeds: [
+      {
+        title,
+        description,
+        color,
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  };
+
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 15_000);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Discord webhook failed: ${res.status} ${text}`);
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("Discord webhook error:", msg);
+  }
+}
+
 function run(cmd, args, cwd = ROOT) {
   const r = spawnSync(cmd, args, {
     cwd,
@@ -128,6 +221,11 @@ function run(cmd, args, cwd = ROOT) {
 async function main() {
   const opts = parseArgs();
   const auditPath = path.isAbsolute(opts.output) ? opts.output : path.join(ROOT, opts.output);
+
+  async function finish(exitCode, failureReason) {
+    await notifyDiscordIfConfigured({ exitCode, failureReason, opts, auditPath });
+    process.exit(exitCode);
+  }
 
   console.error("═══════════════════════════════════════════════════════════════");
   console.error("  DORKFI AUDIT BOTH CHAINS → SUMMARY → SYNC (defaults)");
@@ -151,7 +249,7 @@ async function main() {
   const auditStatus = run("node", ["scripts/audit.js", ...auditArgs]);
   if (auditStatus !== 0 && auditStatus !== 1) {
     console.error("Audit failed with status", auditStatus);
-    process.exit(auditStatus);
+    return finish(auditStatus, `Audit failed with status ${auditStatus}`);
   }
   // Exit 1 from audit means "stale positions found" — we continue
 
@@ -160,7 +258,7 @@ async function main() {
   const summaryStatus = run("node", ["scripts/audit.js", "--mode", "summary", auditPath]);
   if (summaryStatus !== 0) {
     console.error("Summary failed with status", summaryStatus);
-    process.exit(summaryStatus);
+    return finish(summaryStatus, `Summary failed with status ${summaryStatus}`);
   }
 
   // 3. Sync positions (defaults: critical,high; dry-run unless --submit)
@@ -176,13 +274,19 @@ async function main() {
   console.error("\n── Step 3: Sync positions (defaults) ──");
   const syncStatus = run("node", ["scripts/sync-position.js", ...syncArgs]);
   if (syncStatus !== 0) {
-    process.exit(syncStatus);
+    return finish(syncStatus, `Sync failed with status ${syncStatus}`);
   }
 
-  process.exit(0);
+  return finish(0, null);
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(e);
+  await notifyDiscordIfConfigured({
+    exitCode: 2,
+    failureReason: e instanceof Error ? e.message : String(e),
+    opts: null,
+    auditPath: null,
+  });
   process.exit(2);
 });
